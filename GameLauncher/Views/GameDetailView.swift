@@ -31,8 +31,42 @@ struct GameDetailView: View {
                 }
             }
 
-            Section("状态") {
+            if !current.versions.isEmpty {
+                Section("版本（安卓 / 苹果分区）") {
+                    ForEach(current.versions) { ver in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(ver.version).font(.body)
+                                Text(ver.platform.rawValue)
+                                    .font(.caption2)
+                                    .foregroundColor(ver.platform == .ios ? .blue : .green)
+                            }
+                            Spacer()
+                            if ver.isDownloaded {
+                                Text("已下载").font(.caption).foregroundColor(.green)
+                            } else if isDownloading(ver) {
+                                ProgressView().scaleEffect(0.8)
+                            } else {
+                                Button("下载") {
+                                    downloadVersion(ver)
+                                }
+                                .disabled(downloader.isDownloading)
+                            }
+                        }
+                    }
+                }
                 if downloader.isDownloading {
+                    Section("下载进度") {
+                        ProgressView(value: downloader.progress)
+                        if let err = downloader.lastError {
+                            Text(err).font(.caption).foregroundColor(.red)
+                        }
+                    }
+                }
+            }
+
+            Section("状态") {
+                if downloader.isDownloading && !isAnyVersionDownloading {
                     ProgressView(value: downloader.progress)
                     Text("下载中…").font(.caption).foregroundColor(.secondary)
                 } else if current.isDownloaded {
@@ -76,6 +110,14 @@ struct GameDetailView: View {
         }
     }
 
+    private var isAnyVersionDownloading: Bool {
+        downloader.isDownloading
+    }
+
+    private func isDownloading(_ ver: GameVersion) -> Bool {
+        downloader.isDownloading
+    }
+
     private func startDownload(_ u: String) {
         let fileName = URL(string: u)?.lastPathComponent ?? "\(current.name).bin"
         downloader.download(from: u, fileName: fileName) { result in
@@ -85,8 +127,16 @@ struct GameDetailView: View {
         }
     }
 
+    private func downloadVersion(_ ver: GameVersion) {
+        let fileName = URL(string: ver.url)?.lastPathComponent ?? "\(ver.version).bin"
+        downloader.download(from: ver.url, fileName: fileName) { result in
+            if case .success = result {
+                library.markVersionDownloaded(current.id, versionID: ver.id, fileName: fileName)
+            }
+        }
+    }
+
     private func onLaunchTap() {
-        // 需要 JIT 的游戏没开 JIT 时，先弹卡顿确认；开了就直接进
         if jitOn {
             Launcher.open(current)
         } else {

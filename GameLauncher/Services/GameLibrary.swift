@@ -38,6 +38,22 @@ final class GameLibrary: ObservableObject {
         }
     }
 
+    func markVersionDownloaded(_ gameID: UUID, versionID: UUID, fileName: String) {
+        if let gi = games.firstIndex(where: { $0.id == gameID }),
+           let vi = games[gi].versions.firstIndex(where: { $0.id == versionID }) {
+            games[gi].versions[vi].isDownloaded = true
+            games[gi].versions[vi].localFileName = fileName
+            save()
+        }
+    }
+
+    func addVersion(_ gameID: UUID, version: GameVersion) {
+        if let i = games.firstIndex(where: { $0.id == gameID }) {
+            games[i].versions.append(version)
+            save()
+        }
+    }
+
     private func load() {
         guard let data = UserDefaults.standard.data(forKey: key),
               let decoded = try? JSONDecoder().decode([Game].self, from: data) else { return }
