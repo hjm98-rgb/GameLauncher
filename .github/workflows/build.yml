@@ -1,0 +1,39 @@
+name: Build unsigned IPA
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Archive unsigned app
+        run: |
+          xcodebuild -project GameLauncher.xcodeproj -scheme GameLauncher \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath build/GameLauncher.xcarchive archive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Package unsigned IPA
+        run: |
+          rm -rf Payload
+          mkdir -p Payload
+          cp -r build/GameLauncher.xcarchive/Products/Applications/GameLauncher.app Payload/
+          zip -r GameLauncher-unsigned.ipa Payload
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameLauncher-unsigned-ipa
+          path: GameLauncher-unsigned.ipa
